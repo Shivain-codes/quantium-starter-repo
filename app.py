@@ -1,32 +1,72 @@
-from dash import Dash, html, dcc
+from dash import Dash, html, dcc, Input, Output
 import plotly.express as px
 import pandas as pd
 
 app = Dash(__name__)
 
-# 1. Load data and fix the date type to prevent the TypeError
+# Load and prepare data
 df = pd.read_csv('formatted_data.csv')
 df['date'] = pd.to_datetime(df['date'])
 df = df.sort_values(by="date")
 
-# 2. Create the line chart with axis labels
-fig = px.line(
-    df, 
-    x="date", 
-    y="sales", 
-    title="Pink Morsel Sales Over Time",
-    labels={'date': 'Date', 'sales': 'Total Sales ($)'}
-)
+# --- App Layout with CSS Styling ---
+app.layout = html.Div(style={
+    'backgroundColor': '#f9f9f9', 
+    'fontFamily': 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+    'padding': '40px'
+}, children=[
+    
+    html.H1(
+        "Pink Morsel Sales Visualiser", 
+        style={'textAlign': 'center', 'color': '#2c3e50', 'marginBottom': '30px'}
+    ),
 
-# 3. Add the price increase marker (Jan 15, 2021)
-fig.add_vline(x='2021-01-15', line_dash="dash", line_color="red")
+    # Region Picker Section
+    html.Div(style={'textAlign': 'center', 'marginBottom': '20px'}, children=[
+        html.Label("Select Region:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
+        dcc.RadioItems(
+            id='region-filter',
+            options=[
+                {'label': 'North', 'value': 'north'},
+                {'label': 'East', 'value': 'east'},
+                {'label': 'South', 'value': 'south'},
+                {'label': 'West', 'value': 'west'},
+                {'label': 'All', 'value': 'all'}
+            ],
+            value='all', # Default value
+            inline=True,
+            style={'display': 'inline-block'}
+        ),
+    ]),
 
-# 4. App Layout
-app.layout = html.Div([
-    html.H1("Pink Morsel Sales Visualiser", style={'textAlign': 'center'}),
-    dcc.Graph(id='sales-graph', figure=fig)
+    # Graph Section
+    html.Div(style={'backgroundColor': 'white', 'padding': '20px', 'borderRadius': '10px', 'boxShadow': '0px 4px 6px rgba(0,0,0,0.1)'}, children=[
+        dcc.Graph(id='sales-graph')
+    ])
 ])
 
-# 5. Updated run command
+# --- Interactivity Logic (Callback) ---
+@app.callback(
+    Output('sales-graph', 'figure'),
+    Input('region-filter', 'value')
+)
+def update_graph(selected_region):
+    if selected_region == 'all':
+        filtered_df = df
+    else:
+        filtered_df = df[df['region'] == selected_region]
+
+    fig = px.line(
+        filtered_df, 
+        x="date", 
+        y="sales", 
+        title=f"Sales Trend: {selected_region.capitalize() if selected_region != 'all' else 'All Regions'}",
+        labels={'date': 'Date', 'sales': 'Total Sales ($)'},
+        color_discrete_sequence=["#e67e22"] # A nice Pink/Orange color
+    )
+    
+    fig.update_layout(plot_bgcolor='white')
+    return fig
+
 if __name__ == '__main__':
     app.run(debug=True)
